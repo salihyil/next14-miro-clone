@@ -1,7 +1,7 @@
 "use client";
 
-import Info from "./info";
-import Participants from "./participants";
+import { Info } from "./info";
+import { Participants } from "./participants";
 import { Toolbar } from "./toolbar";
 
 type CanvasProps = {

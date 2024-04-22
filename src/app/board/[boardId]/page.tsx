@@ -1,11 +1,17 @@
 import { Canvas } from "@/app/board/[boardId]/_components/canvas";
+import { Loading } from "@/app/board/[boardId]/_components/loading";
+import { Room } from "@/components/room";
 
 type BoardIdPageProps = {
   params: { boardId: string };
 };
 
 const BoardIdPage = ({ params }: BoardIdPageProps) => {
-  return <Canvas boardId={params.boardId} />;
+  return (
+    <Room roomId={params.boardId} fallback={<Loading />}>
+      <Canvas boardId={params.boardId} />
+    </Room>
+  );
 };
 
 export default BoardIdPage;

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 
+import { Loading } from "@/components/auth/loading";
 import { Toaster } from "@/components/ui/sonner";
 import { ConvexClientProvider } from "@/providers/convex-client-provider";
 import { ModalProvider } from "@/providers/modal-provider";
@@ -22,8 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* <Suspense fallback={<Loading />}> */}
-        <Suspense fallback={"adana"}>
+        <Suspense fallback={<Loading />}>
           <ConvexClientProvider>
             <Toaster />
             {/* ModalProvider eklemezsen <RenameModal/> render olmaz.  */}

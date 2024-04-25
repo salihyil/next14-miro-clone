@@ -1,11 +1,13 @@
 "use client";
 
-import { CanvasMode, CanvasState } from "@/types/canvas";
-import { useState } from "react";
+import { pointerEventToCanvasPoint } from "@/lib/utils";
+import { Camera, CanvasMode, CanvasState } from "@/types/canvas";
+import { useCallback, useState } from "react";
+import { useCanRedo, useCanUndo, useHistory, useMutation } from "../../../../../liveblocks.config";
+import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { Participants } from "./participants";
 import { Toolbar } from "./toolbar";
-import { useCanRedo, useCanUndo, useHistory } from "../../../../../liveblocks.config";
 
 type CanvasProps = {
   boardId: string;
@@ -15,11 +17,36 @@ const Canvas = ({ boardId }: CanvasProps) => {
   const [canvasState, setCanvasState] = useState<CanvasState>({
     mode: CanvasMode.None,
   });
+  const [camera, setCamera] = useState<Camera>({
+    x: 0,
+    y: 0,
+  });
 
-  const history = useHistory()
+  const history = useHistory();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
 
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    setCamera((camera) => ({
+      x: camera.x - e.deltaX,
+      y: camera.y - e.deltaY,
+    }));
+  }, []);
+
+  const onPointerMove = useMutation(({ setMyPresence }, e: React.PointerEvent) => {
+    e.preventDefault();
+    const current = pointerEventToCanvasPoint(e, camera);
+
+    setMyPresence({
+      cursor: current,
+    });
+  }, []);
+
+  const onPointerLeave = useMutation(({ setMyPresence }) => {
+    setMyPresence({
+      cursor: null,
+    });
+  }, []);
 
   return (
     <main className="relative h-full w-full bg-neutral-100 touch-none">
@@ -33,6 +60,15 @@ const Canvas = ({ boardId }: CanvasProps) => {
         undo={history.undo}
         redo={history.redo}
       />
+      <svg
+        className="h-screen w-screen"
+        onPointerMove={onPointerMove}
+        onWheel={onWheel}
+        onPointerLeave={onPointerLeave}>
+        <g>
+          <CursorsPresence />
+        </g>
+      </svg>
     </main>
   );
 };

@@ -1,19 +1,28 @@
 "use client";
 
 import { pointerEventToCanvasPoint } from "@/lib/utils";
-import { Camera, CanvasMode, CanvasState } from "@/types/canvas";
+import { Camera, CanvasMode, CanvasState, Color, LayerType, Point } from "@/types/canvas";
+import { LiveObject } from "@liveblocks/client";
+import { nanoid } from "nanoid";
 import { useCallback, useState } from "react";
-import { useCanRedo, useCanUndo, useHistory, useMutation } from "../../../../../liveblocks.config";
+import { useCanRedo, useCanUndo, useHistory, useMutation, useStorage } from "../../../../../liveblocks.config";
 import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { Participants } from "./participants";
 import { Toolbar } from "./toolbar";
+import { LayerPreview } from "./layer-preview";
 
 type CanvasProps = {
   boardId: string;
 };
 
+const MAX_LAYERS = 100;
+
 const Canvas = ({ boardId }: CanvasProps) => {
+  /* layerIds going to be information about everthing that we have to display on our canvas. 
+  So we are going to iteration over those layerIds */
+  const layerIds = useStorage(({ layerIds }) => layerIds);
+  const [lastUsedColor, setLastUsedColor] = useState<Color>({ r: 0, g: 0, b: 0 });
   const [canvasState, setCanvasState] = useState<CanvasState>({
     mode: CanvasMode.None,
   });
@@ -25,6 +34,39 @@ const Canvas = ({ boardId }: CanvasProps) => {
   const history = useHistory();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
+
+  const insertLayer = useMutation(
+    (
+      { storage, setMyPresence },
+      layerType: LayerType.Ellipse | LayerType.Note | LayerType.Text | LayerType.Rectangle,
+      position: Point
+    ) => {
+      const liveLayers = storage.get("layers");
+      if (liveLayers.size >= MAX_LAYERS) {
+        return;
+      }
+
+      const liveLayerIds = storage.get("layerIds");
+      const layerId = nanoid();
+      const layer = new LiveObject({
+        type: layerType,
+        x: position.x,
+        y: position.y,
+        height: 100,
+        width: 100,
+        fill: lastUsedColor,
+      });
+
+      liveLayerIds.push(layerId);
+      liveLayers.set(layerId, layer);
+
+      setMyPresence({ selection: [layerId] }, { addToHistory: true });
+      setCanvasState({
+        mode: CanvasMode.None,
+      });
+    },
+    [lastUsedColor]
+  );
 
   const onWheel = useCallback((e: React.WheelEvent) => {
     setCamera((camera) => ({
@@ -48,6 +90,22 @@ const Canvas = ({ boardId }: CanvasProps) => {
     });
   }, []);
 
+  const onPointerUp = useMutation(
+    ({}, e) => {
+      const point = pointerEventToCanvasPoint(e, camera);
+
+      if (canvasState.mode === CanvasMode.Inserting) {
+        insertLayer(canvasState.layerType, point);
+      } else {
+        setCanvasState({
+          mode: CanvasMode.None,
+        });
+      }
+      history.resume();
+    },
+    [camera, canvasState, history, insertLayer]
+  );
+
   return (
     <main className="relative h-full w-full bg-neutral-100 touch-none">
       <Info boardId={boardId} />
@@ -64,8 +122,15 @@ const Canvas = ({ boardId }: CanvasProps) => {
         className="h-screen w-screen"
         onPointerMove={onPointerMove}
         onWheel={onWheel}
-        onPointerLeave={onPointerLeave}>
-        <g>
+        onPointerLeave={onPointerLeave}
+        onPointerUp={onPointerUp}>
+        <g
+          style={{
+            transform: `translate(${camera.x}px, ${camera.y}px)`,
+          }}>
+          {layerIds.map((layerId) => (
+            <LayerPreview key={layerId} id={layerId} onLayerPointDown={() => {}} selectionColor={'#000'} />
+          ))}
           <CursorsPresence />
         </g>
       </svg>

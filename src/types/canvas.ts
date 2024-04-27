@@ -19,7 +19,7 @@ export enum LayerType {
 
 export type RectangleLayer = {
   type: LayerType.Rectangle;
-  X: number;
+  x: number;
   y: number;
   height: number;
   width: number;
@@ -29,7 +29,7 @@ export type RectangleLayer = {
 
 export type EllipseLayer = {
   type: LayerType.Ellipse;
-  X: number;
+  x: number;
   y: number;
   height: number;
   width: number;
@@ -39,7 +39,7 @@ export type EllipseLayer = {
 
 export type PathLayer = {
   type: LayerType.Path;
-  X: number;
+  x: number;
   y: number;
   height: number;
   width: number;
@@ -50,7 +50,7 @@ export type PathLayer = {
 
 export type TextLayer = {
   type: LayerType.Text;
-  X: number;
+  x: number;
   y: number;
   height: number;
   width: number;
@@ -60,7 +60,7 @@ export type TextLayer = {
 
 export type NoteLayer = {
   type: LayerType.Note;
-  X: number;
+  x: number;
   y: number;
   height: number;
   width: number;
@@ -122,3 +122,5 @@ export enum CanvasMode {
   Resizing,
   Pencil,
 }
+
+export type Layer = RectangleLayer | EllipseLayer | PathLayer | TextLayer | NoteLayer;

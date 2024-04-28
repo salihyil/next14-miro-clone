@@ -1,6 +1,12 @@
 "use client";
 
-import { connectionIdtoColor, pointerEventToCanvasPoint } from "@/lib/utils";
+import {
+  connectionIdtoColor,
+  findIntersectingLayersWithRectangle,
+  penPointsToPathLayer,
+  pointerEventToCanvasPoint,
+  resizeBounds,
+} from "@/lib/utils";
 import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
 import { LiveObject } from "@liveblocks/client";
 import { nanoid } from "nanoid";
@@ -83,14 +89,140 @@ const Canvas = ({ boardId }: CanvasProps) => {
     }));
   }, []);
 
-  const onPointerMove = useMutation(({ setMyPresence }, e: React.PointerEvent) => {
-    e.preventDefault();
-    const current = pointerEventToCanvasPoint(e, camera);
-
-    setMyPresence({
-      cursor: current,
-    });
+  /**
+   * Start multiselection with the selection net if the pointer move enough since pressed
+   */
+  const startMultiSelection = useCallback((current: Point, origin: Point) => {
+    // If the distance between the pointer position and the pointer position when it was pressed
+    if (Math.abs(current.x - origin.x) + Math.abs(current.y - origin.y) > 5) {
+      // Start multi selection
+      setCanvasState({
+        mode: CanvasMode.SelectionNet,
+        origin,
+        current,
+      });
+    }
   }, []);
+
+  /**
+   * Update the position of the selection net and select the layers accordingly
+   */
+  const updateSelectionNet = useMutation(
+    ({ storage, setMyPresence }, current: Point, origin: Point) => {
+      const layers = storage.get("layers").toImmutable();
+      setCanvasState({
+        mode: CanvasMode.SelectionNet,
+        origin: origin,
+        current,
+      });
+      const ids = findIntersectingLayersWithRectangle(layerIds, layers, origin, current);
+      setMyPresence({ selection: ids });
+    },
+    [layerIds]
+  );
+
+  /**
+   * Move selected layers on the canvas
+   */
+  const translateSelectedLayers = useMutation(
+    ({ storage, self }, point: Point) => {
+      if (canvasState.mode !== CanvasMode.Translating) {
+        return;
+      }
+
+      const offset = {
+        x: point.x - canvasState.current.x,
+        y: point.y - canvasState.current.y,
+      };
+
+      const liveLayers = storage.get("layers");
+      for (const id of self.presence.selection) {
+        const layer = liveLayers.get(id);
+        if (layer) {
+          layer.update({
+            x: layer.get("x") + offset.x,
+            y: layer.get("y") + offset.y,
+          });
+        }
+      }
+
+      setCanvasState({ mode: CanvasMode.Translating, current: point });
+    },
+    [canvasState]
+  );
+
+  /**
+   * Resize selected layer. Only resizing a single layer is allowed.
+   */
+  const resizeSelectedLayer = useMutation(
+    ({ storage, self }, point: Point) => {
+      if (canvasState.mode !== CanvasMode.Resizing) {
+        return;
+      }
+
+      const bounds = resizeBounds(canvasState.initialBounds, canvasState.corner, point);
+
+      const liveLayers = storage.get("layers");
+      const layer = liveLayers.get(self.presence.selection[0]);
+      if (layer) {
+        layer.update(bounds);
+      }
+    },
+    [canvasState]
+  );
+
+  /**
+   * Continue the drawing and send the current draft to other users in the room
+   */
+  const continueDrawing = useMutation(
+    ({ self, setMyPresence }, point: Point, e: React.PointerEvent) => {
+      const { pencilDraft } = self.presence;
+      if (canvasState.mode !== CanvasMode.Pencil || e.buttons !== 1 || pencilDraft == null) {
+        return;
+      }
+
+      setMyPresence({
+        cursor: point,
+        pencilDraft:
+          pencilDraft.length === 1 && pencilDraft[0][0] === point.x && pencilDraft[0][1] === point.y
+            ? pencilDraft
+            : [...pencilDraft, [point.x, point.y, e.pressure]],
+      });
+    },
+    [canvasState.mode]
+  );
+
+  const onPointerMove = useMutation(
+    ({ setMyPresence }, e: React.PointerEvent) => {
+      e.preventDefault();
+      const current = pointerEventToCanvasPoint(e, camera);
+
+      if (canvasState.mode === CanvasMode.Pressing) {
+        startMultiSelection(current, canvasState.origin);
+      } else if (canvasState.mode === CanvasMode.SelectionNet) {
+        updateSelectionNet(current, canvasState.origin);
+      } else if (canvasState.mode === CanvasMode.Translating) {
+        translateSelectedLayers(current);
+      } else if (canvasState.mode === CanvasMode.Resizing) {
+        resizeSelectedLayer(current);
+      } else if (canvasState.mode === CanvasMode.Pencil) {
+        continueDrawing(current, e);
+      }
+
+      setMyPresence({
+        cursor: current,
+      });
+    },
+    [
+      camera,
+      canvasState,
+      continueDrawing,
+      resizeSelectedLayer,
+      startMultiSelection,
+      translateSelectedLayers,
+      updateSelectionNet,
+    ]
+  );
 
   const onPointerLeave = useMutation(({ setMyPresence }) => {
     setMyPresence({
@@ -98,11 +230,47 @@ const Canvas = ({ boardId }: CanvasProps) => {
     });
   }, []);
 
+  /**
+   * Transform the drawing of the current user in a layer and reset the presence to delete the draft.
+   */
+  const insertPath = useMutation(
+    ({ storage, self, setMyPresence }) => {
+      const liveLayers = storage.get("layers");
+      const { pencilDraft } = self.presence;
+      if (pencilDraft == null || pencilDraft.length < 2 || liveLayers.size >= MAX_LAYERS) {
+        setMyPresence({ pencilDraft: null });
+        return;
+      }
+
+      const id = nanoid();
+      liveLayers.set(id, new LiveObject(penPointsToPathLayer(pencilDraft, lastUsedColor)));
+
+      const liveLayerIds = storage.get("layerIds");
+      liveLayerIds.push(id);
+      setMyPresence({ pencilDraft: null });
+      setCanvasState({ mode: CanvasMode.Pencil });
+    },
+    [lastUsedColor]
+  );
+
+  const unselectLayers = useMutation(({ self, setMyPresence }) => {
+    if (self.presence.selection.length > 0) {
+      setMyPresence({ selection: [] }, { addToHistory: true });
+    }
+  }, []);
+
   const onPointerUp = useMutation(
     ({}, e) => {
       const point = pointerEventToCanvasPoint(e, camera);
 
-      if (canvasState.mode === CanvasMode.Inserting) {
+      if (canvasState.mode === CanvasMode.None || canvasState.mode === CanvasMode.Pressing) {
+        unselectLayers();
+        setCanvasState({
+          mode: CanvasMode.None,
+        });
+      } else if (canvasState.mode === CanvasMode.Pencil) {
+        insertPath();
+      } else if (canvasState.mode === CanvasMode.Inserting) {
         insertLayer(canvasState.layerType, point);
       } else {
         setCanvasState({
@@ -111,7 +279,39 @@ const Canvas = ({ boardId }: CanvasProps) => {
       }
       history.resume();
     },
-    [camera, canvasState, history, insertLayer]
+    [camera, canvasState, history, insertLayer, insertPath, setCanvasState, unselectLayers]
+  );
+
+  /**
+   * Insert the first path point and start drawing with the pencil
+   */
+  const startDrawing = useMutation(
+    ({ setMyPresence }, point: Point, pressure: number) => {
+      setMyPresence({
+        pencilDraft: [[point.x, point.y, pressure]],
+        penColor: lastUsedColor,
+      });
+    },
+    [lastUsedColor]
+  );
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      const point = pointerEventToCanvasPoint(e, camera);
+
+      if (canvasState.mode === CanvasMode.Inserting) {
+        return;
+      }
+
+      // Drawing
+      if (canvasState.mode === CanvasMode.Pencil) {
+        startDrawing(point, e.pressure);
+        return;
+      }
+
+      setCanvasState({ origin: point, mode: CanvasMode.Pressing });
+    },
+    [camera, canvasState.mode, setCanvasState, startDrawing]
   );
 
   const selections = useOthersMapped((other) => other.presence.selection);
@@ -178,8 +378,9 @@ const Canvas = ({ boardId }: CanvasProps) => {
       />
       <svg
         className="h-screen w-screen"
-        onPointerMove={onPointerMove}
         onWheel={onWheel}
+        onPointerMove={onPointerMove}
+        onPointerDown={onPointerDown}
         onPointerLeave={onPointerLeave}
         onPointerUp={onPointerUp}>
         <g

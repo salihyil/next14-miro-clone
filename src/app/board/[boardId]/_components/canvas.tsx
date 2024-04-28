@@ -24,6 +24,7 @@ import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
 import { Participants } from "./participants";
 import { SelectionBox } from "./selection-box";
+import SelectionTools from "./selection-tools";
 import { Toolbar } from "./toolbar";
 
 type CanvasProps = {
@@ -375,6 +376,11 @@ const Canvas = ({ boardId }: CanvasProps) => {
         canUndo={canUndo}
         undo={history.undo}
         redo={history.redo}
+      />
+      <SelectionTools
+        isAnimated={canvasState.mode !== CanvasMode.Translating && canvasState.mode !== CanvasMode.Resizing}
+        camera={camera}
+        setLastUsedColor={setLastUsedColor}
       />
       <svg
         className="h-screen w-screen"

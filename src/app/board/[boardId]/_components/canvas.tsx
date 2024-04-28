@@ -1,7 +1,7 @@
 "use client";
 
 import { connectionIdtoColor, pointerEventToCanvasPoint } from "@/lib/utils";
-import { Camera, CanvasMode, CanvasState, Color, LayerType, Point } from "@/types/canvas";
+import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
 import { LiveObject } from "@liveblocks/client";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useState } from "react";
@@ -17,6 +17,7 @@ import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
 import { Participants } from "./participants";
+import { SelectionBox } from "./selection-box";
 import { Toolbar } from "./toolbar";
 
 type CanvasProps = {
@@ -148,6 +149,21 @@ const Canvas = ({ boardId }: CanvasProps) => {
     return layerIdsToColorSelection;
   }, [selections]);
 
+  /**
+   * Start resizing the layer
+   */
+  const onResizeHandlePointerDown = useCallback(
+    (corner: Side, initialBounds: XYWH) => {
+      history.pause();
+      setCanvasState({
+        mode: CanvasMode.Resizing,
+        initialBounds,
+        corner,
+      });
+    },
+    [history]
+  );
+
   return (
     <main className="relative h-full w-full bg-neutral-100 touch-none">
       <Info boardId={boardId} />
@@ -178,6 +194,8 @@ const Canvas = ({ boardId }: CanvasProps) => {
               selectionColor={layerIdsToColorSelection[layerId]}
             />
           ))}
+          {/* Blue square that show the selection of the current users. Also contains the resize handles. */}
+          <SelectionBox onResizeHandlePointerDown={onResizeHandlePointerDown} />
           <CursorsPresence />
         </g>
       </svg>

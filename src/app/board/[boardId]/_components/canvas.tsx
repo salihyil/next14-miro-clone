@@ -1,5 +1,6 @@
 "use client";
 
+import { useDisableScrollDounce } from "@/hooks/use-disable-scroll-bounce";
 import {
   colorToCss,
   connectionIdtoColor,
@@ -11,7 +12,8 @@ import {
 import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
 import { LiveObject } from "@liveblocks/client";
 import { nanoid } from "nanoid";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
+
 import {
   useCanRedo,
   useCanUndo,
@@ -50,6 +52,7 @@ const Canvas = ({ boardId }: CanvasProps) => {
   });
   const pencilDraft = useSelf((me) => me.presence.pencilDraft);
 
+  useDisableScrollDounce();
   const history = useHistory();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();

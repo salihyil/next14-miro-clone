@@ -14,6 +14,7 @@ type Props = {
 export default function Path({ x, y, onPointerDown, stroke, fill, points }: Props) {
   return (
     <path
+      className="drop-shadow-md"
       onPointerDown={onPointerDown}
       d={getSvgPathFromStroke(
         getStroke(points, {

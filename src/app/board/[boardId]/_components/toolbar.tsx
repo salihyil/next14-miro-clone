@@ -58,8 +58,8 @@ export const Toolbar = ({ canRedo, canUndo, canvasState, redo, setCanvasState, u
         />
       </div>
       <div className="bg-white rounded-md p-1.5 flex gap-y-1 flex-col items-center shadow-md">
-        <ToolButton label="Undo" icon={Undo2} onClick={undo} isDisabled={!canUndo} />
-        <ToolButton label="Redo" icon={Redo2} onClick={redo} isDisabled={!canRedo} />
+        <ToolButton label="Undo (ctrl + z)" icon={Undo2} onClick={undo} isDisabled={!canUndo} />
+        <ToolButton label="Redo (ctrl + y)" icon={Redo2} onClick={redo} isDisabled={!canRedo} />
       </div>
     </div>
   );

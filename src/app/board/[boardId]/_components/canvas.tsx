@@ -12,8 +12,9 @@ import {
 import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
 import { LiveObject } from "@liveblocks/client";
 import { nanoid } from "nanoid";
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import useDeleteLayers from "@/hooks/use-delete-layers";
 import {
   useCanRedo,
   useCanUndo,
@@ -371,6 +372,31 @@ const Canvas = ({ boardId }: CanvasProps) => {
     },
     [history]
   );
+
+  const deleteLayers = useDeleteLayers();
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      switch (e.key) {
+        case "z":
+          if (e.ctrlKey || e.metaKey) {
+            history.undo();
+          }
+          break;
+        case "y":
+          if (e.ctrlKey || e.metaKey) {
+            history.redo();
+          }
+          break;
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [deleteLayers, history]);
 
   return (
     <main className="relative h-full w-full bg-neutral-100 touch-none">

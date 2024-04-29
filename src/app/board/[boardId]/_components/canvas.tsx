@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  colorToCss,
   connectionIdtoColor,
   findIntersectingLayersWithRectangle,
   penPointsToPathLayer,
@@ -17,12 +18,14 @@ import {
   useHistory,
   useMutation,
   useOthersMapped,
+  useSelf,
   useStorage,
 } from "../../../../../liveblocks.config";
 import { CursorsPresence } from "./cursors-presence";
 import { Info } from "./info";
 import { LayerPreview } from "./layer-preview";
 import { Participants } from "./participants";
+import Path from "./path";
 import { SelectionBox } from "./selection-box";
 import SelectionTools from "./selection-tools";
 import { Toolbar } from "./toolbar";
@@ -45,6 +48,7 @@ const Canvas = ({ boardId }: CanvasProps) => {
     x: 0,
     y: 0,
   });
+  const pencilDraft = useSelf((me) => me.presence.pencilDraft);
 
   const history = useHistory();
   const canUndo = useCanUndo();
@@ -401,6 +405,20 @@ const Canvas = ({ boardId }: CanvasProps) => {
               selectionColor={layerIdsToColorSelection[layerId]}
             />
           ))}
+          {/* Selection net that appears when the user is selecting multiple layers at once */}
+          {canvasState.mode === CanvasMode.SelectionNet && canvasState.current != null && (
+            <rect
+              className="fill-blue-500/5 stroke-blue-500 stroke-[0.5]"
+              x={Math.min(canvasState.origin.x, canvasState.current.x)}
+              y={Math.min(canvasState.origin.y, canvasState.current.y)}
+              width={Math.abs(canvasState.origin.x - canvasState.current.x)}
+              height={Math.abs(canvasState.origin.y - canvasState.current.y)}
+            />
+          )}
+          {/* Drawing in progress. Still not commited to the storage. */}
+          {pencilDraft != null && pencilDraft.length > 0 && (
+            <Path points={pencilDraft} fill={colorToCss(lastUsedColor)} x={0} y={0} />
+          )}
           {/* Blue square that show the selection of the current users. Also contains the resize handles. */}
           <SelectionBox onResizeHandlePointerDown={onResizeHandlePointerDown} />
           <CursorsPresence />

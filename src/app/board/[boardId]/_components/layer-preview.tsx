@@ -1,10 +1,14 @@
 "use client";
 
+import { colorToCss } from "@/lib/utils";
 import { LayerType } from "@/types/canvas";
 import React, { memo } from "react";
 import { useStorage } from "../../../../../liveblocks.config";
 import Ellipse from "./ellipse";
+import { Note } from "./note";
+import Path from "./path";
 import Rectangle from "./rectangle";
+import { Text } from "./text";
 
 type LayerPreviewProps = {
   id: string;
@@ -20,20 +24,24 @@ export const LayerPreview = memo(({ id, onLayerPointerDown, selectionColor }: La
   }
 
   switch (layer.type) {
+    case LayerType.Note:
+      return <Note id={id} layer={layer} onPointerDown={onLayerPointerDown} selectionColor={selectionColor} />;
+    case LayerType.Text:
+      return <Text id={id} layer={layer} onPointerDown={onLayerPointerDown} selectionColor={selectionColor} />;
     case LayerType.Ellipse:
       return <Ellipse id={id} layer={layer} onPointerDown={onLayerPointerDown} selectionColor={selectionColor} />;
-    /*     case LayerType.Path:
+    case LayerType.Path:
       return (
         <Path
           key={id}
           points={layer.points}
-          onPointerDown={(e) => onLayerPointDown(e, id)}
+          onPointerDown={(e) => onLayerPointerDown(e, id)}
           x={layer.x}
           y={layer.y}
           fill={layer.fill ? colorToCss(layer.fill) : "#CCC"}
           stroke={selectionColor}
         />
-      ); */
+      );
     case LayerType.Rectangle:
       return <Rectangle id={id} layer={layer} onPointerDown={onLayerPointerDown} selectionColor={selectionColor} />;
     default:

@@ -138,3 +138,9 @@ export function penPointsToPathLayer(points: number[][], color: Color): PathLaye
     points: points.map(([x, y, pressure]) => [x - left, y - top, pressure]),
   };
 }
+
+export const getContrastingTextColor = (color: Color) => {
+  const luminance = 0.229 * color.r + 0.587 * color.g + 0.114 * color.b;
+
+  return luminance > 182 ? "black" : "white";
+};

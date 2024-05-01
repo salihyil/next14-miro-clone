@@ -2,10 +2,11 @@
 
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { cn } from "@/lib/utils";
+import { useProModal } from "@/store/use-pro-modal";
 import { Plus } from "lucide-react";
-import { api } from "../../../../convex/_generated/api";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { api } from "../../../../convex/_generated/api";
 
 type NewBoardButtonProps = {
   orgId: string;
@@ -13,6 +14,7 @@ type NewBoardButtonProps = {
 };
 
 const NewBoardButton = ({ orgId, disabled }: NewBoardButtonProps) => {
+  const { isOpen, onClose, onOpen } = useProModal();
   const router = useRouter();
   const { mutate, pending } = useApiMutation(api.board.createBoard);
 
@@ -27,6 +29,7 @@ const NewBoardButton = ({ orgId, disabled }: NewBoardButtonProps) => {
       })
       .catch(() => {
         toast.error("Failed to create board");
+        onOpen();
       });
   };
 

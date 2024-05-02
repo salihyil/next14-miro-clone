@@ -1,7 +1,7 @@
 "use node";
 import { v } from "convex/values";
 import Stripe from "stripe";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 
 const url = process.env.NEXT_PUBLIC_APP_URL;
 const stripe = new Stripe(process.env.STRIPE_API_KEY!, {
@@ -48,5 +48,30 @@ export const pay = action({
     });
 
     return (await session).url!;
+  },
+});
+
+export const fulfill = internalAction({
+  args: {
+    signature: v.string(),
+    payload: v.string(),
+  },
+  handler(ctx, { signature, payload }) {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+
+    try {
+      const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+      const session = event.data.object as Stripe.Checkout.Session;
+      
+      if (event.type === "checkout.session.completed") {
+        console.log("Checkout Completed");
+        // create schema orgSubscription and then we have handle one additional event which is to upgrade the current subscripton
+      }
+      return { success: true };
+
+    } catch (error) {
+      console.error(error);
+      return { success: false };
+    }
   },
 });

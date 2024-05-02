@@ -20,7 +20,7 @@ export const get = internalQuery({
 
 export const getIsSubscribed = query({
   args: {
-    orgId: v.string(),
+    orgId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (!args.orgId) {

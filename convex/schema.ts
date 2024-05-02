@@ -31,7 +31,7 @@ export default defineSchema({
     .index("by_user_board_org", ["userId", "boardId", "orgId"]),
 
   orgSubscription: defineTable({
-    orgId: v.string(),
+    orgId: v.optional(v.string()),
     stripeCustomerId: v.string(),
     stripeSubscriptionId: v.string(),
     stripePriceId: v.string(),
